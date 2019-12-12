@@ -6,7 +6,7 @@ Implementation of a simple yet fast dataset for neural machine translation
 import pickle
 from typing import List, Callable, IO, Union, Any
 
-from constants import UNK_TOKEN, EOS_TOKEN, SOS_TOKEN, PAD_TOKEN
+from nmt.common import UNK_TOKEN, EOS_TOKEN, SOS_TOKEN, PAD_TOKEN, configurable
 
 class Vocabulary(object):
 
@@ -31,10 +31,10 @@ class Vocabulary(object):
         return self.stoi[token]
 
 def default_normalizer(sentence: str):
-    pass
+    return sentence
 
 def default_tokenizer(sentence: str):
-    pass
+    return sentence.split(' ')
 
 NORMALIZERS = {
     'default': default_normalizer
@@ -148,3 +148,6 @@ class Corpora(object):
             raise Exception('Corpora::load: Input to load function is not an instance of `Corpora`.')
         return corpora
 
+@configurable('train.data')
+def get_train_dataset(src_path: str, tgt_path: str = './data/train.en'):
+    pass
