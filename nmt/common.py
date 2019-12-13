@@ -3,6 +3,7 @@
 Definition of global constants
 """
 
+import logging
 import inspect
 from typing import Callable, Union, T
 
@@ -15,16 +16,16 @@ EOS_TOKEN = '</s>'
 
 configuration = Configuration()
 
-def configurable(parent_configuration: str = None):
+def configured(parent_configuration: str = None):
 
     global configuration
     config_provider = configuration
     if parent_configuration is not None:
         path = parent_configuration.split('.')
         for part in path:
-            config_provider = config_provider.add_submodule(part)
+            config_provider = config_provider.ensure_submodule(part)
 
-    def make_configurable_function(f: Callable):
+    def make_configured_function(f: Callable):
 
         param_names = []
 
@@ -32,7 +33,7 @@ def configurable(parent_configuration: str = None):
         for param_name in signature.parameters:
             param_names.append(param_name)
             param_specs = signature.parameters[param_name]
-            config_provider.register_param(
+            config_provider.ensure_param(
                 param_name,
                 None \
                 if param_specs.default == inspect.Parameter.empty else \
@@ -42,10 +43,11 @@ def configurable(parent_configuration: str = None):
         def configured_f():
             params = { name: getattr(config_provider, name) for name in param_names }
             return f(**params)
+        configured_f.__name__ = f.__name__
 
         return configured_f
 
-    def make_configurable_class(c: T):
+    def make_configured_class(c: T):
         param_names = []
 
         signature = inspect.signature(c.__init__)
@@ -56,7 +58,7 @@ def configurable(parent_configuration: str = None):
                 continue
             param_names.append(param_name)
             param_specs = signature.parameters[param_name]
-            config_provider.register_param(
+            config_provider.ensure_param(
                 param_name,
                 None \
                 if param_specs.default == inspect.Parameter.empty else \
@@ -66,15 +68,41 @@ def configurable(parent_configuration: str = None):
         class configured_c(c):
             def __init__(self):
                 params = { name: getattr(config_provider, name) for name in param_names }
-                super(configured_c, self).__init__(**params)
+                c.__init__(self, **params)
+        configured_c.__name__ = c.__name__
 
         return configured_c
         
 
-    def make_configurable(o: Union[Callable, object]):
+    def make_configured(o: Union[Callable, object]):
         if inspect.isclass(o):
-            return make_configurable_class(o)
+            return make_configured_class(o)
         else:
-            return make_configurable_function(o)
+            return make_configured_function(o)
 
-    return make_configurable
+    return make_configured
+
+logger: logging.Logger = None
+
+@configured('model')
+def make_logger(output_path: str = './model/'):
+    global logger
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level=logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+
+    fh = logging.FileHandler('{}/train.log'.format(output_path))
+    fh.setLevel(level=logging.DEBUG)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+
+def get_logger():
+    global logger
+    return logger

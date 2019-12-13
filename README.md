@@ -1,4 +1,4 @@
-* Behrooz's Sequence To Sequence mapping toolkit
+* Behrooz's neural machine translation toolkit
 
 ** Main goal
 In exploring the plethora of tools for mapping sequences, I could not find a 

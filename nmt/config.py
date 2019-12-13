@@ -24,7 +24,7 @@ class Configuration(object):
         
         return '.'.join(reversed(path))
 
-    def add_submodule(self, name: str):
+    def ensure_submodule(self, name: str):
         submodules = self.__dict__['__submodules']
         parameters = self.__dict__['__parameters']
         if name in submodules:
@@ -49,6 +49,16 @@ class Configuration(object):
                 self.fullname(), name
             ))
         parameters[name] = { "default": default }
+    
+    def ensure_param(self, name: str, default: Any = None):
+        parameters = self.__dict__['__parameters']
+        if name in parameters:
+            if default is not None and parameters[name]['default'] != default:
+                raise Exception('{}: Parameter `{}` has already been registered with a different default ({} != {}).'.format(
+                    self.fullname(), name, parameters[name]['default'], default
+                ))
+            return
+        self.register_param(name, default)
     
     def __setattr__(self, name: str, value: Any):
         parameters = self.__dict__['__parameters']
@@ -83,7 +93,7 @@ class Configuration(object):
         parameters = self.__dict__['__parameters']
         for name in parameters:
             if name in source:
-                parameters[name] = source[name]
+                parameters[name]["value"] = source[name]
         for name in submodules:
             if name in source:
                 if isinstance(source[name], dict):
