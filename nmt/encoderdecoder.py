@@ -14,11 +14,11 @@ class EncoderDecoder(nn.Module):
     def encode(self, x):
         raise NotImplementedError('Abstract EncoderDecoder.encode function called')
 
-    def decode_one_step(self, y_i, state):
+    def decode_one_step(self, y, x_e, state):
         raise NotImplementedError('Abstract EncoderDecoder.decode_one_step function called')
 
-    def decode(self, y, x_e):
+    def decode(self, y, x_e, teacher_forcing):
         raise NotImplementedError('Abstract EncoderDecoder.decode function called')
 
     def forward(self, *args, **kwargs):
-        raise NotImplementedError('Direct calling of translation models is prohibited.')
+        raise RuntimeError('Direct calling of translation models is prohibited.')

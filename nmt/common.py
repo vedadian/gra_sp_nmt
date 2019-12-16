@@ -14,6 +14,8 @@ PAD_TOKEN = '<pad>'
 SOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
 
+epsilon = 1e-6
+
 configuration = Configuration()
 
 def configured(parent_configuration: str = None):

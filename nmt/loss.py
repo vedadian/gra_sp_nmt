@@ -15,7 +15,6 @@ class SmoothedCrossEntropyLoss(nn.Module):
 
     def __init__(self, smoothing_amount: float = 0.2):
         nn.Module.__init__(self)
-        print(smoothing_amount)
         self.smoothing_amount = smoothing_amount
 
     # pylint: disable=arguments-differ
