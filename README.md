@@ -1,6 +1,8 @@
-* Behrooz's neural machine translation toolkit
+Behrooz's neural machine translation toolkit
+============================================
 
-** Main goal
+Main goal
+---------
 
 In exploring the plethora of tools for mapping sequences, I could not find a 
 simple and yet accurate implementation of Transformer model. This repository
