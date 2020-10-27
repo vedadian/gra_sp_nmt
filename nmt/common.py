@@ -3,6 +3,11 @@
 Definition of global constants
 """
 
+import os
+import torch
+import numpy as np
+import random
+
 import logging
 import inspect
 import typing
@@ -18,17 +23,14 @@ epsilon = 1e-6
 
 configuration = Configuration()
 
-
 class IgnoreMeta(type):
     def __getitem__(cls, val):
         result = cls()
         result.__args__ = val
         return result
 
-
 class Ignore(object, metaclass=IgnoreMeta):
     pass
-
 
 def configured(parent_configuration: str = None):
 
@@ -108,6 +110,41 @@ def configured(parent_configuration: str = None):
 
 logger: logging.Logger = None
 
+xm = None
+if ('COLAB_TPU_ADDR' in  os.environ) and os.environ['COLAB_TPU_ADDR']:
+    import torch_xla
+    import torch_xla.core.xla_model
+    xm = torch_xla.core.xla_model
+
+def mark_optimization_step():
+    if xm is not None:
+        xm.mark_step()
+
+device = None
+def set_device(value):
+    global device
+    device = value
+
+@configured('train')
+def get_device(use_gpu: bool = False):
+    global device
+    if device is None:
+        if use_gpu:
+            if xm is not None:
+                return xm.xla_device()
+            if torch.cuda.is_available():
+                return torch.device('cuda')
+        return torch.device('cpu')
+    return device
+
+def set_random_seeds(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available:
+        torch.cuda.manual_seed_all(seed)
+    if xm is not None:
+        xm.set_rng_state(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
 @configured('model')
 def make_logger(output_path: str = './model/'):

@@ -14,7 +14,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 
-from nmt.common import Ignore, configured, get_logger
+from nmt.common import Ignore, configured, get_logger, get_device, mark_optimization_step, set_random_seeds
 from nmt.dataset import get_train_dataset, get_validation_dataset
 from nmt.encoderdecoder import EncoderDecoder
 from nmt.loss import get_loss_function
@@ -75,7 +75,6 @@ def initialize(
                 else:
                     nn.init.ones_(p.data)
 
-
 @configured('train')
 def train(
     max_steps: int = 100,
@@ -86,19 +85,10 @@ def train(
     lr_scheduler_at: str = 'every_step',
     n_ckpts_to_keep: int = 3,
     teacher_forcing: bool = True,
-    use_gpu: bool = False,
     random_seed: int = 42
 ):
 
-    if not torch.cuda.is_available():
-        use_gpu = False
-
-    torch.manual_seed(random_seed)
-    if use_gpu:
-        torch.cuda.manual_seed_all(random_seed)
-    np.random.seed(random_seed)
-    random.seed(random_seed)
-
+    set_random_seeds(random_seed)
     logger = get_logger()
 
     train_dataset = get_train_dataset()
@@ -117,9 +107,8 @@ def train(
         train_dataset.fields[0].vocabulary, train_dataset.fields[1].vocabulary
     )
 
-    if use_gpu:
-        model.cuda()
-        loss_function.cuda()
+    model.to(get_device())
+    loss_function.to(get_device())
 
     optimizer = build_optimizer(model.parameters())
     scheduler = build_scheduler(optimizer)
@@ -205,7 +194,8 @@ def train(
         start_time = time.time()
         total_tokens_processed = 0
         for batch in train_dataset.iterate(
-            'cuda' if use_gpu else 'cpu', batch_size_limit,
+            get_device(),
+            batch_size_limit,
             batch_limit_by_tokens
         ):
             step += 1
@@ -231,6 +221,7 @@ def train(
             loss.backward()
 
             optimizer.step()
+            mark_optimization_step()
             optimizer.zero_grad()
 
             run_scheduler_at_step()

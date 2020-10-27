@@ -228,8 +228,8 @@ class Model(EncoderDecoder):
         self.pe = self.pe.cuda()
 
     def cpu(self, *args, **kwargs):
-        super().cuda(*args, **kwargs)
-        self.pe = self.pe.cuda(*args, **kwargs)
+        super().cpu(*args, **kwargs)
+        self.pe = self.pe.cpu(*args, **kwargs)
 
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)

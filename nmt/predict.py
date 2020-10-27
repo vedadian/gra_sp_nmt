@@ -10,7 +10,7 @@ from typing import Callable, Tuple
 # pylint: disable=no-member,no-value-for-parameter
 import torch
 
-from nmt.common import Ignore, configured, get_logger
+from nmt.common import Ignore, configured, get_logger, get_device
 
 from nmt.dataset import Corpora, Vocabulary, Field
 from nmt.model import build_model
@@ -93,14 +93,10 @@ def predict(
     model: EncoderDecoder = None,
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
-    use_gpu: bool = False,
     random_seed: int = 42,
 ):
     
     logger = get_logger()
-
-    if not torch.cuda.is_available():
-        use_gpu = False
 
     (src_vocab, _), (src_field, tgt_field) = _get_vocabularies()
 
@@ -123,13 +119,12 @@ def predict(
         )
         state_dict = torch.load(best_model_path)
         model.load_state_dict(state_dict['model_state'])
-        if use_gpu:
-            model.cuda()
+        model.to(get_device())
 
     with open(output, 'w') as output_stream, torch.no_grad():
 
         for batch in dataset.iterate(
-            'cuda' if use_gpu else 'cpu',
+            get_device(),
             batch_size_limit,
             batch_limit_by_tokens,
             sort_by_length=False,
@@ -165,7 +160,6 @@ def evaluate(
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
     teacher_forcing: bool = True,
-    use_gpu: bool = False,
     random_seed: int = 42,
     metrics: Tuple[Metric] = None
 ):
@@ -173,17 +167,13 @@ def evaluate(
         validation_dataset.fields
     ) >= 2, "Validation dataset must have at least two fields (source and target)."
 
-    if not torch.cuda.is_available():
-        use_gpu = False
-
     logger = get_logger()
 
     if loss_function is None:
         loss_function = get_loss_function(
             validation_dataset.fields[1].vocabulary.pad_index
         )
-        if use_gpu:
-            loss_function.cuda()
+        loss_function.to(get_device())
     if model is None:
         best_model_path = find_best_model()
         if best_model_path is None:
@@ -196,8 +186,7 @@ def evaluate(
         )
         state_dict = torch.load(best_model_path)
         model.load_state_dict(state_dict['model_state'])
-        if use_gpu:
-            model.cuda()
+        model.to(get_device())
     pad_index = model.tgt_vocab.pad_index
 
     total_item_count = 0
@@ -215,7 +204,7 @@ def evaluate(
 
         start_time = time.time()
         for validation_batch in validation_dataset.iterate(
-            'cuda' if use_gpu else 'cpu',
+            get_device(),
             batch_size_limit,
             batch_limit_by_tokens,
             sort_by_length=False,
