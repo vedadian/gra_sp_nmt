@@ -243,6 +243,7 @@ def evaluate(
             y_hat, _ = beam_search(
                 x_e, x_mask, model, get_scores=short_sent_penalty
             )
+            
             if printed_samples < 4:
                 sentence = validation_dataset.fields[0].to_sentence_str(
                     validation_batch[0][-1].tolist()
@@ -256,6 +257,7 @@ def evaluate(
                 logger.info('SENTENCE:\n ---- {}'.format(sentence))
                 logger.info('REFERENCE:\n ---- {}'.format(reference))
                 logger.info('GENERATED:\n ---- {}'.format(generated))
+
                 printed_samples += 1
 
             update_metric_params(y_hat, validation_batch[1], pad_index, metrics)

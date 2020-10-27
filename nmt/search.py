@@ -12,7 +12,7 @@ import torch
 
 from torch import Tensor
 
-from nmt.common import configured
+from nmt.common import Ignore, configured
 from nmt.encoderdecoder import EncoderDecoder
 
 
@@ -29,11 +29,12 @@ def beam_search(
     get_scores: Callable[[int, Tensor, Tensor], Tensor] = None,
     beam_size: int = 3,
     length_pentalty_alpha: float = 1.0,
-    max_target_length: int = 80
+    max_target_length: int = 80,
 ):
 
     b, _, _ = x_e.size()
     v = len(model.tgt_vocab.itos)
+    tv = model.tgt_vocab
 
     pad_index = model.tgt_vocab.pad_index
     sos_index = model.tgt_vocab.sos_index
