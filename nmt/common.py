@@ -147,7 +147,7 @@ def set_random_seeds(seed):
     random.seed(seed)
 
 @configured('model')
-def make_logger(output_path: str = './model/'):
+def make_logger(output_path: str = './results/'):
     global logger
 
     logger = logging.getLogger(__name__)

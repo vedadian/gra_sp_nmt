@@ -3,21 +3,50 @@
 Entrypoint of command line utility
 """
 
+import os
 import json
+import shutil
 import argparse
+
+import torch
 
 import nmt.model
 import nmt.optimization
 
 from nmt.common import configuration, make_logger, logger
-from nmt.dataset import prepare_data, get_validation_dataset, get_test_dataset
+from nmt.dataset import prepare_data, get_train_dataset, get_validation_dataset, get_test_dataset
+from nmt.model import build_model, get_model_short_description, get_model_source_code_path
 from nmt.train import train
-from nmt.predict import predict, evaluate
+from nmt.predict import predict, evaluate, get_vocabularies
 from nmt.sanity import sanity_check
 
 def run_evaluate(get_dataset, log_prefix):
     dataset = get_dataset()
     evaluate(dataset, log_prefix)
+
+def update_and_ensure_model_output_path(mode, index):
+    model_configuration = configuration.ensure_submodule('model')
+    model_short_description = get_model_short_description()
+    model_source_code_path = get_model_source_code_path()
+
+    base_output_path = model_configuration.output_path
+
+    if model_short_description is not None:
+        base_output_path = os.path.join(model_configuration.output_path, f'{model_short_description}')
+
+    if mode != 'train':
+        if index is None:
+            index = 1
+            while not os.path.exists(f'{base_output_path}/{index:03}'):
+                index += 1
+        model_configuration.output_path = f'{base_output_path}/{index:03}'
+    else:
+        index = 1
+        while os.path.exists(f'{base_output_path}/{index:03}'):
+            index += 1
+        model_configuration.output_path = f'{base_output_path}/{index:03}'
+        os.makedirs(model_configuration.output_path, exist_ok=True)
+        shutil.copyfile(model_source_code_path, os.path.join(model_configuration.output_path, 'model.py'))
 
 def main():
 
@@ -29,8 +58,15 @@ def main():
             'save_config', 'prepare_data', 'train', 'test', 'translate',
             'sanity_check'
         ],
-        help='Prepare corpora to be used in training.',
+        help='Mode of execution.',
         required=True
+    )
+    parser.add_argument(
+        '-x',
+        '--index',
+        type=int,
+        help='Model index to be used in case of "test/translate" modes.',
+        required=False
     )
     parser.add_argument(
         '-c',
@@ -59,6 +95,7 @@ def main():
     if args.mode != 'save_config':
         with open(args.config_path) as f:
             configuration.load(json.load(f))
+        update_and_ensure_model_output_path(args.mode, args.index)
         make_logger()
 
     if args.mode == 'save_config':
@@ -67,7 +104,15 @@ def main():
     elif args.mode == 'prepare_data':
         prepare_data()
     elif args.mode == 'train':
-        train()
+        train_dataset = get_train_dataset()
+        assert len(
+            train_dataset.fields
+        ) >= 2, "Train dataset must have at least two fields (source and target)."
+        validation_dataset = get_validation_dataset()
+        assert len(
+            validation_dataset.fields
+        ) >= 2, "Validation dataset must have at least two fields (source and target)."
+        train(train_dataset, validation_dataset)
     elif args.mode == 'test':
         run_evaluate(get_validation_dataset, 'validation')
         run_evaluate(get_test_dataset, 'test')
@@ -79,7 +124,6 @@ def main():
         sanity_check()
     else:
         raise ValueError('Invalid execution mode.')
-
 
 if __name__ == "__main__":
     main()

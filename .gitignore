@@ -2,4 +2,4 @@
 *.py[cod]
 __pycache__
 data
-models
+results

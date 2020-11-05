@@ -41,7 +41,7 @@ def find_best_model(output_path: str):
     return best_model_path
 
 @configured('data')
-def _get_vocabularies(
+def get_vocabularies(
     train_root_path: str,
     src_lang_code: str,
     tgt_lang_code: str,
@@ -93,12 +93,11 @@ def predict(
     model: EncoderDecoder = None,
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
-    random_seed: int = 42,
 ):
     
     logger = get_logger()
 
-    (src_vocab, _), (src_field, tgt_field) = _get_vocabularies()
+    (src_vocab, _), (src_field, tgt_field) = get_vocabularies()
 
     dataset = Corpora([src_field])
     logger.info(f'{log_prefix}: Loading input file ...')
@@ -160,7 +159,6 @@ def evaluate(
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
     teacher_forcing: bool = True,
-    random_seed: int = 42,
     metrics: Tuple[Metric] = None
 ):
     assert len(

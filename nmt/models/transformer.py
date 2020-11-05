@@ -217,6 +217,18 @@ class Model(EncoderDecoder):
         self.lne = nn.LayerNorm(embedding_size, eps=epsilon)
         self.lnd = nn.LayerNorm(embedding_size, eps=epsilon)
 
+    @staticmethod
+    def short_description():
+        return "transformer_baseline"
+
+    @staticmethod
+    def description():
+        return """
+        Transformer Baseline
+        ====================
+        The transformer model based on "Attention is all you need" paper by wasvani et al.
+        """
+
     @property
     def tgt_embed(self):
         if self.__tgt_embed is not None:

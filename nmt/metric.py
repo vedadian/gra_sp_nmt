@@ -79,7 +79,7 @@ class BleuMetric(Metric):
                 sys_len=self.sys_len,
                 ref_len=self.ref_len,
                 smooth_method='exp',
-                smooth_value=SMOOTH_VALUE_DEFAULT,
+                smooth_value=None,
                 use_effective_order=False
             )
         return self._bleu
