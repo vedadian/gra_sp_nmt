@@ -14,7 +14,7 @@ import nmt.model
 import nmt.optimization
 
 from nmt.common import configuration, make_logger, logger
-from nmt.dataset import prepare_data, get_train_dataset, get_validation_dataset, get_test_dataset
+from nmt.dataset import prepare_data, get_validation_dataset, get_test_dataset
 from nmt.model import build_model, get_model_short_description, get_model_source_code_path
 from nmt.train import train
 from nmt.predict import predict, evaluate, get_vocabularies
@@ -104,15 +104,7 @@ def main():
     elif args.mode == 'prepare_data':
         prepare_data()
     elif args.mode == 'train':
-        train_dataset = get_train_dataset()
-        assert len(
-            train_dataset.fields
-        ) >= 2, "Train dataset must have at least two fields (source and target)."
-        validation_dataset = get_validation_dataset()
-        assert len(
-            validation_dataset.fields
-        ) >= 2, "Validation dataset must have at least two fields (source and target)."
-        train(train_dataset, validation_dataset)
+        train()
     elif args.mode == 'test':
         run_evaluate(get_validation_dataset, 'validation')
         run_evaluate(get_test_dataset, 'test')

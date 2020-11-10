@@ -15,7 +15,7 @@ from torch import nn
 from torch.optim import Optimizer
 
 from nmt.common import Ignore, configured, get_logger, get_device, mark_optimization_step, set_random_seeds
-from nmt.dataset import Corpora
+from nmt.dataset import get_train_dataset, get_validation_dataset
 from nmt.encoderdecoder import EncoderDecoder
 from nmt.loss import get_loss_function
 from nmt.model import build_model
@@ -79,8 +79,6 @@ def initialize(
 
 @configured('train')
 def train(
-    train_dataset: Corpora,
-    validation_dataset: Corpora,
     max_steps: int = 100,
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
@@ -94,6 +92,15 @@ def train(
 
     set_random_seeds(random_seed)
     logger = get_logger()
+
+    train_dataset = get_train_dataset()
+    assert len(
+        train_dataset.fields
+    ) >= 2, "Train dataset must have at least two fields (source and target)."
+    validation_dataset = get_validation_dataset()
+    assert len(
+        validation_dataset.fields
+    ) >= 2, "Validation dataset must have at least two fields (source and target)."
 
     model = build_model(
         train_dataset.fields[0].vocabulary,
