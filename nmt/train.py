@@ -102,13 +102,13 @@ def train(
         validation_dataset.fields
     ) >= 2, "Validation dataset must have at least two fields (source and target)."
 
+    loss_function = get_loss_function(
+        train_dataset.fields[1].vocabulary.pad_index
+    )
+
     model = build_model(
         train_dataset.fields[0].vocabulary,
         train_dataset.fields[1].vocabulary
-    )
-    
-    loss_function = get_loss_function(
-        train_dataset.fields[1].vocabulary.pad_index
     )
     
     model.to(get_device())

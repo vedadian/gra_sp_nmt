@@ -28,10 +28,7 @@ def build_model(
             f'No `{type}` exists in defined seq2seq models.'
         )
 
-    model = model_module.Model(src_vocab, tgt_vocab)
-    model.source_code_path = f'{os.path.dirname(__file__)}/models/{type}.py'
-
-    return model
+    return model_module.Model(src_vocab, tgt_vocab)
 
 @configured('model')
 def get_model_short_description(type: str = 'transformer'):
