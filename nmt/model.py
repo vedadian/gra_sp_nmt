@@ -13,7 +13,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from nmt.dataset import Vocabulary
-from nmt.common import configured
+from nmt.common import configured, make_sentence_graph
 from nmt.encoderdecoder import EncoderDecoder
 
 def load_model_module(type: str):
@@ -36,17 +36,17 @@ def build_model(
     src_vocab: Vocabulary, tgt_vocab: Vocabulary, type: str = 'transformer'
 ):
     model_module = load_model_module(type)
+    make_sentence_graph.src_vocab = src_vocab
+    make_sentence_graph.tgt_vocab = tgt_vocab
     return model_module.Model(src_vocab, tgt_vocab)
 
 @configured('model')
 def get_model_short_description(type: str = 'transformer'):
-    return 'transformer_baseline'
-
-    # model_module = load_model_module(type)
-    # if hasattr(model_module.Model, 'short_description'):
-    #     return model_module.Model.short_description()
+    model_module = load_model_module(type)
+    if hasattr(model_module.Model, 'short_description'):
+        return model_module.Model.short_description()
     
-    #return None
+    return None
 
 @configured('model')
 def get_model_source_code_path(type: str = 'transformer'):

@@ -10,7 +10,7 @@ from typing import Callable, Tuple
 # pylint: disable=no-member,no-value-for-parameter
 import torch
 
-from nmt.common import Ignore, configured, get_logger, get_device
+from nmt.common import Ignore, configured, get_logger, get_device, make_sentence_graph
 
 from nmt.dataset import Corpora, Vocabulary, Field
 from nmt.model import build_model
@@ -18,7 +18,6 @@ from nmt.loss import get_loss_function
 from nmt.search import beam_search, short_sent_penalty
 from nmt.metric import update_metric_params, Metric, BleuMetric
 from nmt.encoderdecoder import EncoderDecoder
-
 
 @configured('model')
 def find_best_model(output_path: str):
@@ -132,6 +131,7 @@ def predict(
             x_mask = batch[0] != src_vocab.pad_index
             x_mask = x_mask.unsqueeze(1)
 
+            make_sentence_graph.word_indexes = batch[0]
             x_e = model.encode(batch[0], x_mask)
             y_hat, _ = beam_search(
                 x_e, x_mask, model, get_scores=short_sent_penalty
@@ -146,7 +146,7 @@ def predict(
             logger.info('SENTENCE:\n ---- {}'.format(sentence))
             logger.info('GENERATED:\n ---- {}'.format(generated))
 
-            for generated in (src_field.to_sentence_str(s) for s in y_hat.tolist()):
+            for generated in (tgt_field.to_sentence_str(s) for s in y_hat.tolist()):
                 output_stream.write(f'{generated}\n')
 
 

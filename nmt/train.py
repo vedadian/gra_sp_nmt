@@ -55,7 +55,9 @@ def initialize(
 
     with torch.no_grad():
         for name, p in model.named_parameters():
-            if "embed" in name:
+            if "noinit" in name:
+                pass
+            elif "embed" in name:
                 if p.dim() > 1:
                     init_embed_weights(p.data)
                 else:
@@ -69,8 +71,6 @@ def initialize(
                     init_bias(p.data)
                 else:
                     nn.init.zeros_(p.data)
-            elif "f_params" in name:
-                pass
             else:
                 if p.dim() > 1:
                     init_weights(p.data)
@@ -89,6 +89,8 @@ def train(
     teacher_forcing: bool = True,
     random_seed: int = 42
 ):
+
+    # torch.autograd.set_detect_anomaly(True)
 
     set_random_seeds(random_seed)
     logger = get_logger()
@@ -222,6 +224,9 @@ def train(
             )
             token_count = y_mask[:, :, 1:].sum().item()
             loss = loss_function(log_probs, batch[1][:, 1:], model.get_target_embeddings()) / token_count
+            if torch.isnan(loss).any():
+                print(y_mask[:,0,1:][torch.any(log_probs.isnan(), dim=-1)][:10])
+                raise Exception('Loss function has invalid values.')
             loss.backward()
 
             optimizer.step()

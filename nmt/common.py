@@ -8,6 +8,9 @@ import torch
 import numpy as np
 import random
 
+import graphviz
+import math
+
 import logging
 import inspect
 import typing
@@ -20,6 +23,35 @@ SOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
 
 epsilon = 1e-6
+
+def make_sentence_graph(sentence, A, output_path):
+
+    def get_color(weight, M):
+        r = g = b = 16
+        if weight < 0:
+            b = int(min(128, -128 * weight / M))
+        elif weight > 0:
+            r = int(min(128, 128 * weight / M))
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    Amax = np.abs(A).max()
+    g = graphviz.Digraph(comment=' '.join(sentence))
+    n = len(sentence)
+
+    for i in range(n):
+        for j in range(n):
+            if A[i, j] == Amax:
+                print('Found max')
+            if A[i, j] / Amax < 0.05:
+                continue
+            if A[i, j] == Amax:
+                print('Applied max')
+            c = get_color(A[i, j], Amax)
+            w = str(max(0.01, 3 * abs(A[i, j]) / Amax))
+            g.edge(sentence[i], sentence[j], penwidth=w, color=c)
+    
+    g.render(output_path)
+make_sentence_graph.word_indexes = None
 
 configuration = Configuration()
 
@@ -146,16 +178,22 @@ def set_random_seeds(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+run_mode = 'train'
+def set_mode(m):
+    global run_mode
+    run_mode = m
+
 @configured('model')
 def make_logger(output_path: str = './results/'):
     global logger
+    global run_mode
 
     logger = logging.getLogger(__name__)
     logger.setLevel(level=logging.DEBUG)
 
     formatter = logging.Formatter('%(asctime)s %(message)s')
 
-    fh = logging.FileHandler('{}/train.log'.format(output_path))
+    fh = logging.FileHandler(f'{output_path}/{run_mode}.log')
     fh.setLevel(level=logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)

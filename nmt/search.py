@@ -68,7 +68,7 @@ def beam_search(
 
         log_probs = log_probs.gather(-1, indexes).view(-1).unsqueeze(1)
 
-        row_indexes = indexes.div(v) + (y.size(0) // b) * torch.arange(
+        row_indexes = (indexes // v) + (y.size(0) // b) * torch.arange(
             indexes.size(0), dtype=torch.long, device=indexes.device
         ).unsqueeze(1)
         row_indexes = row_indexes.view(-1)

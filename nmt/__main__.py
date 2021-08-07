@@ -8,7 +8,7 @@ import json
 import shutil
 import argparse
 
-from nmt.common import configuration, make_logger, logger
+from nmt.common import configuration, set_mode, make_logger, logger
 from nmt.dataset import prepare_data, get_validation_dataset, get_test_dataset
 from nmt.model import get_model_short_description, get_model_source_code_path
 from nmt.train import train
@@ -30,6 +30,8 @@ def update_and_ensure_model_output_path(mode, index):
         base_output_path = os.path.join(model_configuration.output_path, f'{model_short_description}')
 
     if mode != 'train':
+        if not os.path.exists(base_output_path):
+            raise IOError(f'Path `{base_output_path}` does not exist!')
         if index is None:
             index = 1
             while not os.path.exists(f'{base_output_path}/{index:03}'):
@@ -84,12 +86,23 @@ def main():
         help='Path to output hypotheses file.',
         required=False
     )
+    parser.add_argument(
+        '-t',
+        '--type',
+        type=str,
+        help='Model type. Overrides configuration file.',
+        required=False
+    )
 
     args = parser.parse_args()
+
+    set_mode(args.mode)
 
     if args.mode != 'save_config':
         with open(args.config_path) as f:
             configuration.load(json.load(f))
+        if args.type is not None:
+            configuration.ensure_submodule('model').type = args.type
         update_and_ensure_model_output_path(args.mode, args.index)
         make_logger()
 
