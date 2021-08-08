@@ -20,8 +20,6 @@ EOS_TOKEN = '</s>'
 
 epsilon = 1e-6
 
-make_sentence_graph.word_indexes = None
-
 configuration = Configuration()
 
 class IgnoreMeta(type):
