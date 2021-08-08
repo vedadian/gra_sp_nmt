@@ -12,7 +12,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from nmt.dataset import Vocabulary
-from nmt.common import configured, epsilon, make_sentence_graph
+from nmt.common import configured, epsilon
 from nmt.encoderdecoder import EncoderDecoder
 
 mha_module_index = 0
@@ -53,9 +53,6 @@ class MultiheadAttention(nn.Module):
 
     def forward(self, k: Tensor, v: Tensor, q: Tensor, mask: Tensor = None):
 
-        is_self_attention = q is v
-        is_cross_attention = self.causual
-
         v_len = v.size(-2)
         q_len = q.size(-2)
 
@@ -90,16 +87,6 @@ class MultiheadAttention(nn.Module):
 
         attention = self.softmax(scores)
         attention = self.dropout(attention)
-
-        if is_self_attention and not is_cross_attention and (make_sentence_graph.word_indexes is not None):
-            def create_pdf_of_graph():
-                vocab = make_sentence_graph.tgt_vocab if is_cross_attention else make_sentence_graph.src_vocab
-                sentence = list(vocab.itos[e] for e in make_sentence_graph.word_indexes[0])
-                print(attention.size(), len(sentence), is_self_attention, is_cross_attention, self.module_index)
-                for head_index in range(self.num_heads):
-                    output_path = ('tgt' if is_cross_attention else 'src') + '_l' + str(self.module_index) + '_h' + str(head_index)
-                    make_sentence_graph(sentence, attention[0, head_index].cpu().numpy(), output_path)
-            create_pdf_of_graph()
 
         result = torch.matmul(attention, v) \
             .transpose(1, 2).contiguous() \

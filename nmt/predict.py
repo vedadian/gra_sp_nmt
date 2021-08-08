@@ -10,7 +10,7 @@ from typing import Callable, Tuple
 # pylint: disable=no-member,no-value-for-parameter
 import torch
 
-from nmt.common import Ignore, configured, get_logger, get_device, make_sentence_graph
+from nmt.common import Ignore, configured, get_logger, get_device
 
 from nmt.dataset import Corpora, Vocabulary, Field
 from nmt.model import build_model
@@ -52,6 +52,9 @@ def get_vocabularies(
     tgt_tokenizer: str,
     shared_vocabulary: bool,
 ):
+    if get_vocabularies.result is not None:
+        return get_vocabularies.result
+
     field_specs = [
         [src_lowercase, src_normalizer, src_tokenizer],
         [tgt_lowercase, tgt_normalizer, tgt_tokenizer]
@@ -82,7 +85,10 @@ def get_vocabularies(
         Field(l, v, n, t) for (l, n, t), v in zip(field_specs, vocabularies)
     )
     
-    return vocabularies, tuple(fields)
+    get_vocabularies.result = vocabularies, tuple(fields)
+    return get_vocabularies.result
+
+get_vocabularies.result = None
 
 @configured('train')
 def predict(
@@ -131,7 +137,6 @@ def predict(
             x_mask = batch[0] != src_vocab.pad_index
             x_mask = x_mask.unsqueeze(1)
 
-            make_sentence_graph.word_indexes = batch[0]
             x_e = model.encode(batch[0], x_mask)
             y_hat, _ = beam_search(
                 x_e, x_mask, model, get_scores=short_sent_penalty
