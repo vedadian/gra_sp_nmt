@@ -3,6 +3,7 @@
 Tools for visualizing model artifcats and output
 """
 
+import os
 import math
 gv = None
 try:
@@ -12,94 +13,188 @@ except:
     pass
 from torch import Tensor
 
-def __add_nodes(g, labels, r, j, n, add_separator_node):
-    for i, label in enumerate(labels):
-        a = 2 * math.pi * (i + j) / n
-        x = -math.cos(a) * r
-        y = math.sin(a) * r
-        g.node(str(i + j), pos=f'{x},{y}!', label=label)
-    if add_separator_node:
-        a = 2 * math.pi * (len(labels) + j) / n
-        x = -math.cos(a) * r
-        y = math.sin(a) * r
-        g.node(str(len(labels) + j), pos=f'{x},{y}!', label=label, style='invis')
+from nmt.common import configured
 
-def __add_edges(g, s, e, A):
+class MultiheadAttentionType(object):
+    SrcAtt = 0
+    TgtAtt = 1
+    CrsAtt = 2
 
-    A = A.cpu().numpy()
+class __Visualization(object):
 
-    def get_color(weight):
-        r = g = b = 16
-        if weight < 0:
-            b = int(min(128, -128 * weight))
-        elif weight > 0:
-            r = int(min(128, 128 * weight))
-        return f'#{r:02x}{g:02x}{b:02x}'
+    def __init__(self) -> None:
+        super().__init__()
+        self.enabled = False
+        self.suspended = True
 
-    for i, e_n in enumerate(e):
-        for j, s_n in enumerate(s):
-            if A[i, j] < 0.1:
-                continue
-            c = get_color(A[i, j])
-            w = str(4 * abs(A[i, j]))
-            g.edge(s_n, e_n, penwidth=w, color=c)
+        self.source = None
+        self.target = None
 
-def make_sentence_graph(
-    sentence: list,
-    A: Tensor,
-    output_path: str
-):
-    if gv is None:
-        return
+        self.registered_multihead_attention_modules = {}
 
-    n = len(sentence)
-    assert A.size() == (n, n)
+    def wrap(self, f):
+        def wrapped(*args, **kwargs):
+            if gv is None or not self.enabled or self.suspended:
+                return
+            f(*args, **kwargs, source=self.source, target=self.target)
+        return wrapped
 
-    g = gv.Digraph(comment=' '.join(sentence), engine='neato')
+    def __add_nodes(self, g, labels, r, j, n, add_separator_node):
+        for i, label in enumerate(labels):
+            a = 2 * math.pi * (i + j) / n
+            x = -math.cos(a) * r
+            y = math.sin(a) * r
+            g.node(str(i + j), pos=f'{x},{y}!', label=label)
+        if add_separator_node:
+            a = 2 * math.pi * (len(labels) + j) / n
+            x = -math.cos(a) * r
+            y = math.sin(a) * r
+            g.node(str(len(labels) + j), pos=f'{x},{y}!', label=label, style='invis')
 
-    n = len(sentence)
-    __add_nodes(g, sentence, n / 5.0, 0, n, add_separator_node=False)
-    __add_edges(g,
-        list(str(e) for e in range(n)),
-        list(str(e) for e in range(n)),
-        A / A.abs().max().item()
-    )
-    
-    g.render(output_path)
+    def __add_edges(self, g, s, e, A):
+        if not self.enabled or self.suspended:
+            return
+        A = A.cpu().numpy()
+        def get_color(weight):
+            r = g = b = 16
+            if weight < 0:
+                b = int(min(128, -128 * weight))
+            elif weight > 0:
+                r = int(min(128, 128 * weight))
+            return f'#{r:02x}{g:02x}{b:02x}'
 
-def make_sentence_pair_graph(
-    sentences: tuple,
-    A: tuple,
-    output_path: str
-):
-    if gv is None:
-        return
+        for i, e_n in enumerate(e):
+            for j, s_n in enumerate(s):
+                if A[i, j] < 0.1:
+                    continue
+                c = get_color(A[i, j])
+                w = str(4 * abs(A[i, j]))
+                g.edge(s_n, e_n, penwidth=w, color=c)
 
-    Amax = max(Aij.abs().max().item() for Aij in A if Aij is not None)
+    def make_sentence_graph(
+        self, 
+        sentence: list,
+        A: Tensor,
+        output_path: str
+    ):
+        if gv is None or not self.enabled or self.suspended:
+            return
 
-    g = gv.Digraph(comment='(' + ','.join(' '.join(s) for s in sentences) + ')', engine='neato')
+        n = len(sentence)
+        assert A.size() == (n, n)
 
-    n = sum(len(s) for s in sentences) + len(sentences)
+        g = gv.Digraph(comment=' '.join(sentence), engine='neato')
 
-    start_indexes = []
+        n = len(sentence)
+        self.__add_nodes(g, sentence, n / 5.0, 0, n, add_separator_node=False)
+        self.__add_edges(g,
+            list(str(e) for e in range(n)),
+            list(str(e) for e in range(n)),
+            A / A.abs().max().item()
+        )
+        
+        g.render(output_path)
 
-    r = n / 5.0
-    j = 0
-    for sentence in sentences:
-        start_indexes.append(j)
-        __add_nodes(g, sentence, r, j, n, add_separator_node=True)
-        j += len(sentence) + 1
+    def make_sentence_pair_graph(
+        self, 
+        sentences: tuple,
+        A: tuple,
+        output_path: str
+    ):
+        if gv is None or not self.enabled or self.suspended:
+            return
 
-    m = len(sentences)
-    for i in range(m):
-        for j in range(m):
-            if A[m * i + j] is None:
-                continue
-            __add_edges(
-                g,
-                list(str(start_indexes[i] + e) for e in range(len(sentences[i]))),
-                list(str(start_indexes[j] + e) for e in range(len(sentences[j]))),
-                A[m * i + j] / Amax
-            )
-    
-    g.render(output_path)
+        Amax = max(Aij.abs().max().item() for Aij in A if Aij is not None)
+
+        g = gv.Digraph(comment='(' + ','.join(' '.join(s) for s in sentences) + ')', engine='neato')
+
+        n = sum(len(s) for s in sentences) + len(sentences)
+
+        start_indexes = []
+
+        r = n / 5.0
+        j = 0
+        for sentence in sentences:
+            start_indexes.append(j)
+            self.__add_nodes(g, sentence, r, j, n, add_separator_node=True)
+            j += len(sentence) + 1
+
+        m = len(sentences)
+        for i in range(m):
+            for j in range(m):
+                if A[m * i + j] is None:
+                    continue
+                self.__add_edges(
+                    g,
+                    list(str(start_indexes[i] + e) for e in range(len(sentences[i]))),
+                    list(str(start_indexes[j] + e) for e in range(len(sentences[j]))),
+                    A[m * i + j] / Amax
+                )
+        
+        g.render(output_path)
+
+    def __produce_multihead_attention_artifacts(
+        self,
+        src_vocab,
+        tgt_vocab,
+        module_type,
+        layer_index,
+        attention,
+        source,
+        target
+    ):
+        
+        @configured('model')
+        def get_output_path(output_path: str):
+            return output_path
+
+        artifact_output_path = f'{get_output_path()}/artifacts'
+        if not os.path.exists(artifact_output_path):
+            os.makedirs(artifact_output_path, exist_ok=True)
+
+        if module_type == MultiheadAttentionType.SrcAtt:
+            for s, Ah in zip(source, attention):
+                sentence = list(src_vocab.itos[e] for e in s)
+                for h, A in enumerate(Ah):
+                    visualization.make_sentence_graph(
+                        sentence, A,
+                        f'{artifact_output_path}/{" ".join(sentence)}_src_l{layer_index}_h{h}'
+                    )
+        elif module_type == MultiheadAttentionType.TgtAtt:
+            for t, Ah in zip(target, attention):
+                sentence = list(tgt_vocab.itos[e] for e in t)
+                for h, A in enumerate(Ah):
+                    self.make_sentence_graph(
+                        sentence, A,
+                        f'{artifact_output_path}/{" ".join(sentence)}_tgt_l{layer_index}_h{h}'
+                    )
+        elif module_type == MultiheadAttentionType.CrsAtt:
+            for s, t, Ah in zip(source, target, attention):
+                src_sentence = list(tgt_vocab.itos[e] for e in s)
+                tgt_sentence = list(tgt_vocab.itos[e] for e in t)
+                for h, A in enumerate(Ah):
+                    self.make_sentence_pair_graph(
+                        (src_sentence, tgt_sentence),
+                        (None, None, A, None),
+                        f'{artifact_output_path}/{" ".join(tgt_sentence)}_crs_l{layer_index}_h{h}'
+                    )
+        else:
+            raise Exception('Unknown attention type.')
+
+    def multihead_attention(self, module, attention):
+        if gv is None or not self.enabled or self.suspended:
+            return
+        if module not in self.registered_multihead_attention_modules:
+            return
+        layer_index, attention_type, root = self.registered_multihead_attention_modules[module]
+        self.__produce_multihead_attention_artifacts(
+            root.src_vocab,
+            root.tgt_vocab,
+            attention_type,
+            layer_index,
+            attention,
+            self.source,
+            self.target
+        )
+
+visualization = __Visualization()

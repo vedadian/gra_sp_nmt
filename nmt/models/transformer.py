@@ -3,6 +3,7 @@
 Transformer model for translation
 """
 
+import os
 import math
 
 # pylint: disable=no-member,arguments-differ
@@ -14,7 +15,7 @@ from torch.nn import functional as F
 from nmt.dataset import Vocabulary
 from nmt.common import configured, epsilon
 from nmt.encoderdecoder import EncoderDecoder
-
+from nmt.visualization import MultiheadAttentionType, visualization
 
 class MultiheadAttention(nn.Module):
     def __init__(
@@ -74,6 +75,7 @@ class MultiheadAttention(nn.Module):
             scores = scores.masked_fill(~mask.unsqueeze(1), -math.inf)
 
         attention = self.softmax(scores)
+        visualization.multihead_attention(self, attention)
         attention = self.dropout(attention)
 
         result = torch.matmul(attention, v) \
@@ -104,7 +106,6 @@ def create_positionwise_feedforward(
         nn.Linear(embedding_size, ffn_size), nn.ReLU(), nn.Dropout(dropout),
         nn.Linear(ffn_size, embedding_size)
     )
-
 
 class TransformerEncoderLayer(nn.Module):
     def __init__(
@@ -216,6 +217,13 @@ class Model(EncoderDecoder):
         self.emb_dropout = nn.Dropout(emb_dropout)
         self.lne = nn.LayerNorm(embedding_size, eps=epsilon)
         self.lnd = nn.LayerNorm(embedding_size, eps=epsilon)
+
+        if visualization.enabled:
+            for index, layer in enumerate(self.encoder_layers):
+                visualization.registered_multihead_attention_modules[layer.mha] = index, MultiheadAttentionType.SrcAtt, self
+            for index, layer in enumerate(self.decoder_layers):
+                visualization.registered_multihead_attention_modules[layer.mha0] = index, MultiheadAttentionType.TgtAtt, self
+                visualization.registered_multihead_attention_modules[layer.mha1] = index, MultiheadAttentionType.CrsAtt, self
 
     @staticmethod
     def short_description():

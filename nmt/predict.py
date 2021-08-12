@@ -18,6 +18,7 @@ from nmt.loss import get_loss_function
 from nmt.search import beam_search, short_sent_penalty
 from nmt.metric import update_metric_params, Metric, BleuMetric
 from nmt.encoderdecoder import EncoderDecoder
+from nmt.visualization import visualization
 
 @configured('model')
 def find_best_model(output_path: str):
@@ -102,7 +103,7 @@ def predict(
     
     logger = get_logger()
 
-    (src_vocab, _), (src_field, tgt_field) = get_vocabularies()
+    (src_vocab, tgt_vocab), (src_field, tgt_field) = get_vocabularies()
 
     dataset = Corpora([src_field])
     logger.info(f'{log_prefix}: Loading input file ...')
@@ -121,7 +122,7 @@ def predict(
         model = build_model(
             src_field.vocabulary, tgt_field.vocabulary
         )
-        state_dict = torch.load(best_model_path)
+        state_dict = torch.load(best_model_path, map_location=get_device())
         model.load_state_dict(state_dict['model_state'])
         model.to(get_device())
 
@@ -137,10 +138,26 @@ def predict(
             x_mask = batch[0] != src_vocab.pad_index
             x_mask = x_mask.unsqueeze(1)
 
+            visualization.source = batch[0]
+            visualization.suspended = False
             x_e = model.encode(batch[0], x_mask)
+            visualization.suspended = True
             y_hat, _ = beam_search(
                 x_e, x_mask, model, get_scores=short_sent_penalty
             )
+
+            if visualization.enabled:
+                visualization.target = y_hat
+                visualization.suspended = False
+                model.decode(
+                    y_hat,
+                    x_e,
+                    (y_hat != tgt_vocab.pad_index).unsqueeze(1),
+                    x_mask,
+                    teacher_forcing=True
+                )
+                visualization.suspended = True
+
             sentence = src_field.to_sentence_str(
                 batch[0][-1].tolist()
             )
@@ -187,7 +204,7 @@ def evaluate(
             validation_dataset.fields[0].vocabulary,
             validation_dataset.fields[1].vocabulary
         )
-        state_dict = torch.load(best_model_path)
+        state_dict = torch.load(best_model_path, map_location=get_device())
         model.load_state_dict(state_dict['model_state'])
         model.to(get_device())
     pad_index = model.tgt_vocab.pad_index

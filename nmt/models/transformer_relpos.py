@@ -14,8 +14,8 @@ from torch.nn import functional as F
 from nmt.dataset import Vocabulary
 from nmt.common import configured, epsilon
 from nmt.encoderdecoder import EncoderDecoder
+from nmt.visualization import MultiheadAttentionType, visualization
 
-mha_module_index = 0
 class MultiheadAttention(nn.Module):
     def __init__(
         self,
@@ -24,14 +24,11 @@ class MultiheadAttention(nn.Module):
         dropout: float = 0.1,
         causual: bool = False
     ):
-        global mha_module_index
         nn.Module.__init__(self)
 
         assert embedding_size % num_heads == 0
 
         self.num_heads = num_heads
-        self.module_index = mha_module_index
-        mha_module_index += 1
         self.head_size = embedding_size // num_heads
         self.embedding_size = embedding_size
         self.num_heads = num_heads
@@ -86,6 +83,7 @@ class MultiheadAttention(nn.Module):
             scores = scores.masked_fill(~mask.unsqueeze(1), -math.inf)
 
         attention = self.softmax(scores)
+        visualization.multihead_attention(self, attention)
         attention = self.dropout(attention)
 
         result = torch.matmul(attention, v) \
@@ -214,6 +212,13 @@ class Model(EncoderDecoder):
         self.emb_dropout = nn.Dropout(emb_dropout)
         self.lne = nn.LayerNorm(embedding_size, eps=epsilon)
         self.lnd = nn.LayerNorm(embedding_size, eps=epsilon)
+
+        if visualization.enabled:
+            for index, layer in enumerate(self.encoder_layers):
+                visualization.registered_multihead_attention_modules[layer.mha] = index, MultiheadAttentionType.SrcAtt, self
+            for index, layer in enumerate(self.decoder_layers):
+                visualization.registered_multihead_attention_modules[layer.mha0] = index, MultiheadAttentionType.TgtAtt, self
+                visualization.registered_multihead_attention_modules[layer.mha1] = index, MultiheadAttentionType.CrsAtt, self
 
     @staticmethod
     def short_description():

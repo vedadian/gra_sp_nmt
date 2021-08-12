@@ -8,12 +8,15 @@ import json
 import shutil
 import argparse
 
+import nmt.common
+
 from nmt.common import configuration, set_mode, make_logger, logger
 from nmt.dataset import prepare_data, get_validation_dataset, get_test_dataset
 from nmt.model import get_model_short_description, get_model_source_code_path
 from nmt.train import train
 from nmt.predict import predict, evaluate, get_vocabularies
 from nmt.sanity import sanity_check
+from nmt.visualization import visualization
 
 def run_evaluate(get_dataset, log_prefix):
     dataset = get_dataset()
@@ -93,8 +96,16 @@ def main():
         help='Model type. Overrides configuration file.',
         required=False
     )
+    parser.add_argument(
+        '-v',
+        '--visualize',
+        action='store_true',
+        help='Enable/disables visualization of model artifcats.',
+        required=False
+    )
 
     args = parser.parse_args()
+    nmt.common.args = args
 
     set_mode(args.mode)
 
@@ -105,6 +116,9 @@ def main():
             configuration.ensure_submodule('model').type = args.type
         update_and_ensure_model_output_path(args.mode, args.index)
         make_logger()
+
+    if args.visualize:
+        visualization.enabled = True
 
     if args.mode == 'save_config':
         with open(args.config_path, 'w') as f:
