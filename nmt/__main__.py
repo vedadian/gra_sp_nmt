@@ -39,7 +39,7 @@ def update_and_ensure_model_output_path(mode, index):
 
     base_output_path = os.path.join(model_configuration.output_path, get_train_dataset_title())
     if model_short_description is not None:
-        base_output_path = os.path.join(model_configuration.output_path, f'{model_short_description}')
+        base_output_path = os.path.join(base_output_path, f'{model_short_description}')
 
     if mode != 'train':
         if not os.path.exists(base_output_path):
