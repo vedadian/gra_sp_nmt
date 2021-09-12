@@ -275,8 +275,9 @@ def train(
         log_prefix = 'Final (epoch={} ~ step={})'.format(epoch, step)
         score = evaluate(validation_dataset, log_prefix, model, loss_function)
         maybe_save_checkpoint(score)
+    logger.info('Training Finished.')
     logger.info(
-        'Best validation loss was {:.3f} at step {}.'.format(
+        'Best validation score was {:.3f} at step {}.'.format(
             best_checkpoint_specs["score"], best_checkpoint_specs["step"]
         )
     )
