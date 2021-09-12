@@ -29,7 +29,10 @@ def update_and_ensure_model_output_path(mode, index):
 
     @nmt.common.configured('data')
     def get_train_dataset_title(train_root_path: str = './data/train'):
-        result = train_root_path
+        if os.path.isdir(train_root_path):
+            result = train_root_path
+        else:
+            result = os.path.dirname(train_root_path)
         if result[-1] == '/':
             result = result[:-1]
         result = os.path.basename(result)
