@@ -27,8 +27,17 @@ def update_and_ensure_model_output_path(mode, index):
     model_source_code_path = get_model_source_code_path()
     model_configuration = configuration.ensure_submodule('model')
 
-    base_output_path = model_configuration.output_path
+    @nmt.common.configured('data')
+    def get_train_dataset_title(train_root_path: str = './data/train'):
+        result = train_root_path
+        if result[-1] == '/':
+            result = result[:-1]
+        result = os.path.basename(result)
+        if result == '.' or result == '':
+            result = 'UNKNOWN'
+        return result
 
+    base_output_path = os.path.join(model_configuration.output_path, get_train_dataset_title())
     if model_short_description is not None:
         base_output_path = os.path.join(model_configuration.output_path, f'{model_short_description}')
 
@@ -46,7 +55,14 @@ def update_and_ensure_model_output_path(mode, index):
             index += 1
         model_configuration.output_path = f'{base_output_path}/{index:03}'
         os.makedirs(model_configuration.output_path, exist_ok=True)
-        shutil.copyfile(model_source_code_path, os.path.join(model_configuration.output_path, 'model.py'))
+        shutil.copyfile(
+            model_source_code_path,
+            os.path.join(model_configuration.output_path, 'model.py')
+        )
+        shutil.copyfile(
+            nmt.common.args.config_path,
+            os.path.join(model_configuration.output_path, 'config.json')
+        )
 
 def main():
 
