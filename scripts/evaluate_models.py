@@ -3,7 +3,6 @@
 Script to evaluate all models trained on a given dataset
 """
 
-from nmt import model
 import os
 import sys
 import json
