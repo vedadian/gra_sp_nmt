@@ -124,7 +124,7 @@ def train(
     if init_file_path is not None:
         def initialize_from_pickle(model, init_file_path):
             state_dict = torch.load(init_file_path, map_location=get_device())
-            model.load_state_dict(state_dict['model_state'])            
+            model.load_state_dict(state_dict['model_state'], strict=False)
         initialize_from_pickle(model, init_file_path)
 
     def noop():
