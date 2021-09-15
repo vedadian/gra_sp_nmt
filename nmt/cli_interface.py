@@ -128,7 +128,14 @@ def main(cli_args: Sequence[str]):
         '-b',
         '--base_output_path',
         type=str,
-        help='Enable/disables visualization of model artifcats.',
+        help='Forces base output path.',
+        required=False
+    )
+    parser.add_argument(
+        '-n',
+        '--init_file_path',
+        type=str,
+        help='Pickle file to load initial values from',
         required=False
     )
 
@@ -158,7 +165,7 @@ def main(cli_args: Sequence[str]):
     elif args.mode == 'prepare_data':
         prepare_data()
     elif args.mode == 'train':
-        train()
+        train(args.init_file_path)
     elif args.mode == 'test':
         run_evaluate(get_validation_dataset, 'validation')
         run_evaluate(get_test_dataset, 'test')

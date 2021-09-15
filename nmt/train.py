@@ -79,6 +79,7 @@ def initialize(
 
 @configured('train')
 def train(
+    init_file_path: Ignore[str],
     max_steps: int = 100,
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
@@ -120,6 +121,11 @@ def train(
     scheduler = build_scheduler(optimizer)
 
     initialize(model)
+    if init_file_path is not None:
+        def initialize_from_pickle(model, init_file_path):
+            state_dict = torch.load(init_file_path, map_location=get_device())
+            model.load_state_dict(state_dict['model_state'])            
+        initialize_from_pickle(model, init_file_path)
 
     def noop():
         return None
