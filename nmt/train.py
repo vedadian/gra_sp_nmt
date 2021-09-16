@@ -124,7 +124,12 @@ def train(
     if init_file_path is not None:
         def initialize_from_pickle(model, init_file_path):
             state_dict = torch.load(init_file_path, map_location=get_device())
-            model.load_state_dict(state_dict['model_state'], strict=False)
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict['model_state'], strict=False)
+            if unexpected_keys:
+                logger.warn(
+                    'Some unexpected parameters present like `{}`.'.format(unexpected_keys[0])
+                )
+                
         initialize_from_pickle(model, init_file_path)
 
     def noop():
@@ -198,6 +203,7 @@ def train(
             torch.save(state_dict, checkpoint_path)
             kept_checkpoint_path_score_map[checkpoint_path] = score
 
+    evaluate(validation_dataset, '*******************' , model, loss_function)
     model.train()
 
     validation_done_already = False

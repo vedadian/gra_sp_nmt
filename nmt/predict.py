@@ -183,7 +183,7 @@ def evaluate(
     batch_size_limit: int = 400,
     batch_limit_by_tokens: bool = True,
     teacher_forcing: bool = True,
-    metrics: Tuple[Metric] = None
+    metrics: Ignore[Tuple] = None
 ):
     assert len(
         validation_dataset.fields
@@ -217,8 +217,10 @@ def evaluate(
 
     printed_samples = 0
 
-    if not any(isinstance(m, BLEU) for m in metrics):
-        metrics = (BLEU(),) + metrics
+    if metrics is None:
+        metrics = (BLEU(force=True),)
+    elif not any(isinstance(m, BLEU) for m in metrics):
+        metrics = (BLEU(force=True),) + metrics
     metrics = tuple(m for m in metrics if isinstance(m, BLEU)) +\
               tuple(m for m in metrics if not isinstance(m, BLEU))
 
