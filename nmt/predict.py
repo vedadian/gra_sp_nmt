@@ -16,9 +16,11 @@ from nmt.dataset import Corpora, Vocabulary, Field
 from nmt.model import build_model
 from nmt.loss import get_loss_function
 from nmt.search import beam_search, short_sent_penalty
-from nmt.metric import update_metric_params, Metric, BleuMetric
 from nmt.encoderdecoder import EncoderDecoder
 from nmt.visualization import visualization
+
+from sacrebleu.metrics import BLEU
+
 
 @configured('model')
 def find_best_model(output_path: str):
@@ -215,14 +217,18 @@ def evaluate(
 
     printed_samples = 0
 
-    if metrics is None:
-        metrics = (BleuMetric(),)
-    else:
-        metrics = (BleuMetric(),) + tuple(m for m in metrics if not isinstance(m, BleuMetric))
+    if not any(isinstance(m, BLEU) for m in metrics):
+        metrics = (BLEU(),) + metrics
+    metrics = tuple(m for m in metrics if isinstance(m, BLEU)) +\
+              tuple(m for m in metrics if not isinstance(m, BLEU))
+
+    references = []
+    hypotheses = []
 
     with torch.no_grad():
 
         start_time = time.time()
+
         for validation_batch in validation_dataset.iterate(
             get_device(),
             batch_size_limit,
@@ -253,23 +259,28 @@ def evaluate(
                 x_e, x_mask, model, get_scores=short_sent_penalty
             )
             
+            references.extend(
+                validation_dataset.fields[1].to_sentence_str(e.tolist())
+                for e in
+                validation_batch[1]
+            )
+            hypotheses.extend(
+                validation_dataset.fields[1].to_sentence_str(e.tolist())
+                for e in
+                y_hat
+            )
+
             if printed_samples < 4:
                 sentence = validation_dataset.fields[0].to_sentence_str(
                     validation_batch[0][-1].tolist()
                 )
-                reference = validation_dataset.fields[1].to_sentence_str(
-                    validation_batch[1][-1].tolist()
-                )
-                generated = validation_dataset.fields[1].to_sentence_str(
-                    y_hat[-1].tolist()
-                )
+                reference = references[-1]
+                generated = hypotheses[-1]
                 logger.info('SENTENCE:\n ---- {}'.format(sentence))
                 logger.info('REFERENCE:\n ---- {}'.format(reference))
                 logger.info('GENERATED:\n ---- {}'.format(generated))
 
                 printed_samples += 1
-
-            update_metric_params(y_hat, validation_batch[1], pad_index, metrics)
 
     elapsed_time = time.time() - start_time
     logger.info(
@@ -277,8 +288,13 @@ def evaluate(
         f'evaluation_loss={total_validation_loss / total_item_count:.3f}, '
         f'elapsed_time={int(elapsed_time + 0.5)}s'
     )
-    for metric_repr in (str(m) for m in metrics):
-        logger.info(f'{log_prefix}: evaluation {metric_repr}')
 
-    return metrics[0].get_score()
+    result = None
+    for m in metrics:
+        score = m.corpus_score(hypotheses, [references])
+        if result is None:
+            result = score.score
+        logger.info(f'{log_prefix}: evaluation {score}')
+
+    return result
 

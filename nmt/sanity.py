@@ -50,41 +50,6 @@ def check_smooth_cross_entropy_loss(logger):
         logger.info('SmoothedCrossEntropyLoss ... OK!')
 
 
-def check_bleu(logger):
-    from nmt.metric import update_bleu_params, get_bleu
-
-    pad_index = 1
-    sos_index = 2
-    eos_index = 3
-
-    src = [sos_index, 12, 5, 4, 13, 13, 333, eos_index, pad_index, pad_index]
-    ref = [sos_index, 133, 12, 5, 4, 15, 13, 333, eos_index, pad_index]
-
-    x0 = torch.LongTensor([src])
-    x1 = torch.LongTensor([ref])
-
-    params = update_bleu_params(x0, x1, pad_index)
-
-    expected_params = {
-        'correct': [5, 3, 1, 0],
-        'total': [6, 5, 4, 3],
-        'sys_len': 6,
-        'ref_len': 7
-    }
-
-    valid = True
-    for p in params:
-        if params[p] != expected_params[p]:
-            logger.error(
-                'update_bleu_params failed, `{}` is different than expected. ({} vs {})'
-                .format(p, params[p], expected_params[p])
-            )
-            valid = False
-
-    if valid:
-        logger.info('update_bleu_params ... OK!')
-
-
 def check_multihead_attention(logger):
 
     from nmt.transformer import MultiheadAttention
